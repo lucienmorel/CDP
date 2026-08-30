@@ -15,7 +15,8 @@ import type {
 } from '@tq/shared/protocol';
 import { isErr } from './rooms';
 import type { Member, Room, RoomManager } from './rooms';
-import type { IpRateLimiter } from './rateLimit';
+import { JoinRateLimiter, type IpRateLimiter } from './rateLimit';
+import { headerLookupFrom, resolveClientIp } from './clientIp';
 
 interface SocketData {
   roomCode?: string;
@@ -51,8 +52,15 @@ function isValidPosition(p: unknown): p is Position {
 }
 
 export function registerHandlers(io: TqServer, manager: RoomManager, limiter: IpRateLimiter): () => void {
+  const joinLimiter = new JoinRateLimiter();
   io.on('connection', (socket) => {
-    const ip = socket.handshake.address;
+    // IP réelle du client : derrière Fly/Caddy, socket.handshake.address est
+    // l'IP interne du proxy (identique pour tous) — inutilisable pour du
+    // rate-limiting. On lit Fly-Client-IP / X-Forwarded-For (cf. clientIp.ts).
+    const ip = resolveClientIp(
+      headerLookupFrom(socket.handshake.headers),
+      socket.handshake.address,
+    );
 
     const fail = (ack: (res: { ok: false; error: ErrorCode }) => void, error: ErrorCode, delayed = false) => {
       if (typeof ack !== 'function') return;
@@ -95,10 +103,18 @@ export function registerHandlers(io: TqServer, manager: RoomManager, limiter: Ip
       if (!p || typeof p.roomCode !== 'string' || !isValidCallsign(p.callsign) || !isValidRole(p.role)) {
         return fail(ack, 'INVALID_PAYLOAD');
       }
+      // Verrou anti brute-force : trop d'essais de code inconnu depuis cette IP.
+      if (!joinLimiter.allow(ip)) return fail(ack, 'RATE_LIMITED', true);
       const code = p.roomCode.trim().toUpperCase();
       const res = manager.joinRoom(code, p.callsign.trim(), p.role, socket.id, undefined, p.replace === true);
-      // Délai sur ROOM_NOT_FOUND : ralentit le brute-force des codes.
-      if (isErr(res)) return fail(ack, res.error, res.error === 'ROOM_NOT_FOUND');
+      if (isErr(res)) {
+        // Seul un code inconnu compte comme tentative de brute-force ; les autres
+        // erreurs (indicatif/poste pris) prouvent que le code était bon.
+        if (res.error === 'ROOM_NOT_FOUND') joinLimiter.recordFailure(ip);
+        // Délai sur ROOM_NOT_FOUND : ralentit le brute-force des codes.
+        return fail(ack, res.error, res.error === 'ROOM_NOT_FOUND');
+      }
+      joinLimiter.reset(ip); // succès : on oublie les échecs de cette IP
       enterRoom(socket, res.room, res.member);
       // Remplacement d'un indicatif déconnecté : signaler le départ du fantôme.
       if (res.replacedMemberId) {
@@ -152,6 +168,10 @@ export function registerHandlers(io: TqServer, manager: RoomManager, limiter: Ip
       const ctx = currentMember();
       if (!ctx) return fail(ack, 'NOT_IN_ROOM');
       if (!isValidOrder(order, ctx.member.id)) return fail(ack, 'INVALID_PAYLOAD');
+      // Anti-flood : au-delà du quota, on refuse sans diffuser. RATE_LIMITED est
+      // transitoire côté client (l'ordre reste en file et sera retenté), donc un
+      // dessin légitime brièvement au-dessus du seuil n'est pas perdu.
+      if (!manager.acceptOrder(ctx.member)) return fail(ack, 'RATE_LIMITED');
       manager.pushOrder(ctx.room, order);
       socket.to(ctx.room.code).emit('order', order);
       ack({ ok: true });

@@ -25,6 +25,35 @@ const persistence = createPersistence(manager, SNAPSHOT_PATH, SNAPSHOT_INTERVAL_
 const app = express();
 app.disable('x-powered-by');
 
+// En-têtes de sécurité (défense en profondeur). La CSP est le filet sous
+// l'échappement/assainissement côté client (le contenu relayé est non fiable) :
+// script-src 'self' interdit tout JS injecté. 'unsafe-inline' est nécessaire
+// UNIQUEMENT pour le CSS — Leaflet injecte une <style> et l'app pose des styles
+// en ligne (couleurs des figurés déjà passées par safeColor). Les hôtes listés
+// sont les fonds de carte (img) + géocodage IGN et altitude (connect).
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https://data.geopf.fr https://server.arcgisonline.com https://*.tile.opentopomap.org",
+  "connect-src 'self' https://data.geopf.fr https://api.open-meteo.com",
+  "worker-src 'self'",
+  "manifest-src 'self'",
+  "font-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+].join('; ');
+
+app.use((_req, res, next) => {
+  res.setHeader('Content-Security-Policy', CSP);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Permissions-Policy', 'geolocation=(self), camera=(), microphone=(), payment=()');
+  next();
+});
+
 app.get('/healthz', (_req, res) => {
   res.json({ ok: true, uptime: process.uptime() });
 });

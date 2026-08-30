@@ -4,6 +4,7 @@ import type { Server } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents } from '@tq/shared/protocol';
 import type { RoomManager } from './rooms';
 import { AdminAuthLimiter } from './rateLimit';
+import { resolveClientIp } from './clientIp';
 import { ADMIN_HTML } from './adminPage';
 
 type TqServer = Server<ClientToServerEvents, ServerToClientEvents>;
@@ -30,17 +31,9 @@ function isSecureRequest(req: Request): boolean {
   return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
 }
 
-/**
- * IP réelle du client. Sur Fly, l'en-tête `Fly-Client-IP` est posé par l'edge
- * et non usurpable (contrairement à `X-Forwarded-For` que n'importe qui peut
- * forger) — on le préfère pour que le verrou anti brute-force vise la vraie IP.
- */
+/** IP réelle du client (cf. resolveClientIp) — pour le verrou anti brute-force. */
 function clientIp(req: Request): string {
-  const fly = req.get('fly-client-ip');
-  if (fly) return fly;
-  const xff = (req.get('x-forwarded-for') ?? '').split(',')[0]!.trim();
-  if (xff) return xff;
-  return req.socket.remoteAddress ?? 'unknown';
+  return resolveClientIp((n) => req.get(n), req.socket.remoteAddress ?? 'unknown');
 }
 
 /** Comparaison à temps constant de deux hex de même longueur (sha256). */
@@ -73,6 +66,15 @@ export function createAdminRouter(io: TqServer, manager: RoomManager): Router {
   // La page elle-même est publique (elle ne fait qu'inviter à saisir le code) ;
   // ce sont les appels /admin/api/* qui sont authentifiés.
   router.get('/', (_req, res) => {
+    // CSP dédiée : la page admin est auto-suffisante mais porte son JS et son
+    // CSS en ligne (script/style inline), incompatibles avec la CSP stricte du
+    // client. Tout reste same-origin ; 'unsafe-inline' est cantonné ici.
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; " +
+        "style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
+        "connect-src 'self'; base-uri 'none'; form-action 'none'",
+    );
     res.type('html').send(ADMIN_HTML);
   });
 

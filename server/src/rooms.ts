@@ -5,6 +5,8 @@ import {
   MAX_MEMBERS_PER_ROOM,
   MAX_RECENT_ORDERS,
   MAX_ROOMS,
+  ORDER_MAX_PER_WINDOW,
+  ORDER_WINDOW_MS,
   POSITION_MIN_INTERVAL_MS,
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
@@ -31,6 +33,9 @@ export interface Member {
   lastPosition: Position | null;
   socketId: string | null;
   lastPositionAcceptedAt: number;
+  /** Throttle des ordres (fenêtre fixe) : début de fenêtre et compte courant. */
+  orderWindowStart: number;
+  ordersInWindow: number;
 }
 
 export interface Room {
@@ -189,6 +194,23 @@ export class RoomManager {
     member.lastPositionAcceptedAt = now;
     member.lastPosition = position;
     member.lastSeen = now;
+    return true;
+  }
+
+  /**
+   * Throttle anti-flood des ordres, par membre (fenêtre fixe ORDER_WINDOW_MS).
+   * Retourne false si le membre a dépassé ORDER_MAX_PER_WINDOW dans la fenêtre
+   * courante — l'appelant ne diffuse alors pas l'ordre. Repli sur 0 pour les
+   * champs absents des snapshots antérieurs à ce throttle.
+   */
+  acceptOrder(member: Member, now = Date.now()): boolean {
+    const start = member.orderWindowStart || 0;
+    if (now - start >= ORDER_WINDOW_MS) {
+      member.orderWindowStart = now;
+      member.ordersInWindow = 0;
+    }
+    if ((member.ordersInWindow || 0) >= ORDER_MAX_PER_WINDOW) return false;
+    member.ordersInWindow = (member.ordersInWindow || 0) + 1;
     return true;
   }
 
@@ -363,6 +385,8 @@ export class RoomManager {
       lastPosition: null,
       socketId,
       lastPositionAcceptedAt: 0,
+      orderWindowStart: 0,
+      ordersInWindow: 0,
     };
     room.members.set(member.id, member);
     room.emptySince = null;

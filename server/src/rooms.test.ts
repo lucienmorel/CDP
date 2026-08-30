@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   DISCONNECT_GRACE_MS,
+  ORDER_MAX_PER_WINDOW,
+  ORDER_WINDOW_MS,
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
   ROOM_EMPTY_TTL_MS,
@@ -261,5 +263,43 @@ describe('administration', () => {
     // Le chef remonte en tête de liste.
     expect(summary.members[0]!.id).toBe(member.id);
     expect(summary.members[0]!.isLeader).toBe(true);
+  });
+});
+
+describe('acceptOrder (throttle anti-flood)', () => {
+  it('accepte jusqu’à ORDER_MAX_PER_WINDOW puis rejette dans la fenêtre', () => {
+    const manager = new RoomManager();
+    const { member } = createdRoom(manager);
+    for (let i = 0; i < ORDER_MAX_PER_WINDOW; i++) {
+      expect(manager.acceptOrder(member, T0)).toBe(true);
+    }
+    expect(manager.acceptOrder(member, T0)).toBe(false);
+  });
+
+  it('réinitialise le compteur à la fenêtre suivante', () => {
+    const manager = new RoomManager();
+    const { member } = createdRoom(manager);
+    for (let i = 0; i < ORDER_MAX_PER_WINDOW; i++) manager.acceptOrder(member, T0);
+    expect(manager.acceptOrder(member, T0)).toBe(false);
+    expect(manager.acceptOrder(member, T0 + ORDER_WINDOW_MS)).toBe(true);
+  });
+
+  it('isole le quota entre membres', () => {
+    const manager = new RoomManager();
+    const { room, member } = createdRoom(manager);
+    const second = manager.joinRoom(room.code, 'Bravo 2', ROLE, 'sock-2', T0);
+    if (isErr(second)) throw new Error(second.error);
+    for (let i = 0; i < ORDER_MAX_PER_WINDOW; i++) manager.acceptOrder(member, T0);
+    expect(manager.acceptOrder(member, T0)).toBe(false);
+    expect(manager.acceptOrder(second.member, T0)).toBe(true);
+  });
+
+  it('tolère un membre restauré sans champs de throttle (ancien snapshot)', () => {
+    const manager = new RoomManager();
+    const { member } = createdRoom(manager);
+    // Simule un snapshot antérieur au throttle : champs absents.
+    delete (member as { orderWindowStart?: number }).orderWindowStart;
+    delete (member as { ordersInWindow?: number }).ordersInWindow;
+    expect(manager.acceptOrder(member, T0)).toBe(true);
   });
 });

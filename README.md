@@ -174,7 +174,21 @@ attributs HTML sont assainis : `color` passe par `safeColor` (hex ou nom
 alphabétique seulement — bloque l'évasion d'attribut / l'injection CSS) et le
 `sidc` d'un plot est validé contre `SIDC_REGEX` avant milsymbol. Sans cela, un
 participant malveillant pourrait injecter du HTML/JS rendu chez tous les autres
-(XSS stocké).
+(XSS stocké). En défense en profondeur, le serveur pose une **CSP** stricte
+(`script-src 'self'`, aucun inline JS) et les en-têtes `X-Content-Type-Options`,
+`Referrer-Policy`, `Permissions-Policy` (cf. `server/src/index.ts`) — la console
+`/admin`, auto-suffisante avec son JS/CSS en ligne, porte sa propre CSP.
+
+**Anti-abus serveur.** Les points d'entrée sont rate-limités par IP : création
+de salle (`ROOM_CREATE_PER_IP_PER_HOUR`), verrou anti brute-force du code de
+salle sur les join en échec (`JoinRateLimiter`) et du code admin
+(`AdminAuthLimiter`), et throttle des ordres par membre contre le flood
+(`RoomManager.acceptOrder`, `ORDER_MAX_PER_WINDOW`) — un ordre au-delà du quota
+est refusé (`RATE_LIMITED`, transitoire : conservé en file et retenté côté
+client). L'IP réelle est résolue derrière le proxy via `Fly-Client-IP` (non
+usurpable), avec repli `X-Forwarded-For` (cf. `server/src/clientIp.ts`) : sans
+cela, tout le trafic derrière Fly/Caddy partagerait une seule IP interne et les
+compteurs deviendraient inopérants.
 
 Côté client, les ordres sont appliqués de façon **optimiste** (visibles
 immédiatement). En salle, ils partent dans une file persistée

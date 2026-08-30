@@ -40,6 +40,20 @@ export const POSITION_MIN_INTERVAL_MS = 900;
 export const ROOM_CREATE_PER_IP_PER_HOUR = 10;
 export const FAILED_JOIN_DELAY_MS = 1_000;
 
+// Throttle des ordres (graphiques, plots, chat, acks) par membre : anti-flood.
+// Fenêtre fixe, volontairement généreuse — le tracé légitime, même en rafale,
+// reste très en dessous ; au-delà, l'ordre est rejeté (RATE_LIMITED, transitoire
+// côté client : conservé en file et retenté). Protège CPU/bande passante des
+// autres clients et l'historique (ring buffer MAX_RECENT_ORDERS).
+export const ORDER_MAX_PER_WINDOW = 50;
+export const ORDER_WINDOW_MS = 10_000;
+
+// Anti brute-force du code de salle : échecs de join (code inconnu) par IP sur
+// une fenêtre glissante. Au-delà du seuil, l'IP est rejetée jusqu'à expiration.
+// Seuil large (fautes de frappe légitimes) mais fini face aux 31^5 codes.
+export const JOIN_FAIL_MAX = 20;
+export const JOIN_FAIL_WINDOW_MS = 10 * 60_000;
+
 // Console d'admin : verrouillage par IP après trop d'échecs d'authentification
 // (anti brute-force du code admin). Au-delà du seuil dans la fenêtre, l'IP est
 // rejetée (429) jusqu'à expiration de la fenêtre glissante.
