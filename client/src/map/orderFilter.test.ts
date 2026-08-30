@@ -98,12 +98,14 @@ describe('visibleWaypoints', () => {
     expect(out[0]!.sidc).toBeUndefined();
   });
 
-  it('conserve le calque d’un plot', () => {
-    const pt: OrderMessage = {
+  // Compat : les ordres composés du temps des calques portent encore un champ
+  // `layer`. Il n'est plus interprété — le plot doit rester visible pour tous.
+  it('ignore le champ `layer` des anciens ordres', () => {
+    const pt = {
       id: 'p2', authorId: 'a2', ts: 1, kind: 'waypoint',
       payload: { kind: 'waypoint', name: 'OBJ', lat: 45.1, lng: 5.7, color: '#e8d44d', layer: 'T1' },
-    };
-    expect(visibleWaypoints(new Map([['p2', pt]]))[0]!.layer).toBe('T1');
+    } as unknown as OrderMessage;
+    expect(visibleWaypoints(new Map([['p2', pt]]))).toHaveLength(1);
   });
 
   it('masque un plot visé par un remove, sans toucher aux graphiques', () => {

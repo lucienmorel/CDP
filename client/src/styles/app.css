@@ -968,78 +968,15 @@ input[type='text']:focus { outline: 2px solid var(--accent); border-color: trans
   transform: translate(-50%, -50%);
 }
 
-/* ----- bandeau des calques : puces en haut de l'écran, entre le cluster
-   haut-gauche et la pastille d'état. Déborde en défilement horizontal. ----- */
-#layer-banner {
-  align-items: center;
-  display: flex;
-  gap: 6px;
-  left: 50%;
-  max-width: min(70vw, calc(100vw - 560px));
-  overflow-x: auto;
-  padding: 2px;
-  position: absolute;
-  scrollbar-width: none;
-  top: calc(12px + env(safe-area-inset-top, 0px));
-  transform: translateX(-50%);
-  z-index: 1100;
-}
-#layer-banner::-webkit-scrollbar { display: none; }
-.layer-chip {
-  background: rgba(24, 32, 27, 0.92);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
-  color: var(--muted);
-  cursor: pointer;
-  flex: 0 0 auto;
-  font-size: 0.85rem;
-  font-weight: 600;
-  max-width: 130px;
-  min-height: 36px;
-  overflow: hidden;
-  padding: 5px 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.layer-chip.on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
-}
-#layer-add { font-size: 1.05rem; line-height: 1; min-width: 36px; }
-#layer-new-input {
-  background: rgba(24, 32, 27, 0.92);
-  border: 1px solid var(--accent);
-  border-radius: 18px;
-  color: var(--text);
-  flex: 0 0 auto;
-  font-size: 0.85rem;
-  min-height: 36px;
-  padding: 5px 12px;
-  width: 110px;
-}
-
-/* Écran étroit (téléphone) : la 1re rangée est prise (Comms/loupe + pastille
-   d'état) — le bandeau descend sur la 2e, à droite du bouton Tac. Et tous les
-   boutons flottants de la carte sont réduits de 20 %. (Bloc placé APRÈS les
-   règles de base qu'il surcharge : à spécificité égale, le dernier gagne.) */
+/* Écran étroit (téléphone) : tous les boutons flottants de la carte sont
+   réduits de 20 %. (Bloc placé APRÈS les règles de base qu'il surcharge :
+   à spécificité égale, le dernier gagne.) */
 @media (max-width: 700px) {
-  #layer-banner {
-    left: 88px;
-    max-width: none;
-    right: 56px; /* laisse le sélecteur de fonds Leaflet (haut droite) */
-    top: calc(52px + env(safe-area-inset-top, 0px));
-    transform: none;
-  }
   .fab { height: 43px; width: 43px; }
   .fab svg { height: 21px; width: 21px; }
   .comms-toggle { border-radius: 16px; font-size: 0.72rem; gap: 5px; min-height: 32px; padding: 5px 10px; }
   .comms-toggle svg { height: 16px; width: 16px; }
   .status-pill { border-radius: 16px; font-size: 0.76rem; gap: 6px; min-height: 32px; padding: 5px 11px; }
-  .layer-chip { border-radius: 14px; font-size: 0.68rem; max-width: 104px; min-height: 29px; padding: 4px 10px; }
-  #layer-add { font-size: 0.84rem; min-width: 29px; }
-  #layer-new-input { border-radius: 14px; font-size: 0.68rem; min-height: 29px; padding: 4px 10px; width: 88px; }
   .coord-btn svg { height: 15px; width: 15px; }
   #sketchbar .btn { min-height: 32px; padding: 5px 10px; }
   /* Boutons de zoom Leaflet (44 px en mode tactile). */

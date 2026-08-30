@@ -18,7 +18,6 @@ export type BusEvent =
   | 'members' // roster ou attributs d'un membre modifiés
   | 'position' // une position a bougé (détail: memberId)
   | 'orders' // ordre reçu/ajouté (graphiques, waypoints…)
-  | 'overlays' // calques d'affichage modifiés (visibilité / calque actif)
   | 'coordfmt' // format de coordonnées changé (MGRS/UTM/géo)
   | 'conn'
   | 'rejoined' // re-binding réussi après coupure

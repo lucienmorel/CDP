@@ -34,7 +34,6 @@ dégradé.
 | Tracés partagés | Liserés (nom + figuré d'échelon APP-6), flèches/axes, **box/zones** nommées ; origine sous le réticule, aperçu élastique ; suppression/édition par tous |
 | Plots | **ENI** (losange rouge APP-6 + texte) et **points nommés** (rond de couleur) sous le réticule ; popup avec coordonnées, distance jusqu'à moi, Modifier/Supprimer |
 | Missions | Panneau « Tac » : 15 figurés de mission doctrinaux **section/groupe** (offensives, défensives, sûreté — S'EMP, APP, NEUT, DEF, TEN, ECL, RECO, COUV…) tracés comme des flèches |
-| Calques | Bandeau en haut de l'écran : une puce par calque (T1, ART, +), plusieurs affichables à la fois ; les nouveaux figurés vont dans le dernier calque sélectionné |
 | Comms | Chat de salle avec accusés de lecture (coche façon WhatsApp), notifications toast + vibration, compteur de non-lus |
 | Réseau dégradé | Reconnexion auto (Socket.IO), rejoin transparent, file d'attente des ordres hors-ligne (badge d'éléments non synchronisés) |
 | Terrain / batterie | Position échantillonnée en **basse précision** à cadence lente : un point à l'arrivée puis **1 point / 30 s** au premier plan (GPS éteint entre deux) ; réception des positions bufferisée (un rendu / 30 s) |
@@ -163,8 +162,10 @@ passent tous par une enveloppe générique `OrderMessage`
 `ack`). Le serveur la **relaie sans l'interpréter** : valider la taille,
 pousser dans le ring buffer `recentOrders` (livré aux retardataires), diffuser.
 Un nouveau type d'ordre est donc un changement **client uniquement** — les
-figurés de mission et les calques d'affichage (champs `style.mission` /
-`layer`, opaques pour le serveur) en sont des exemples.
+figurés de mission (champ `style.mission`, opaque pour le serveur) en sont un
+exemple. **Tout figuré transmis est affiché tel quel par tous les membres** :
+pas de filtrage local à la réception — un tracé qu'un membre voit, tous le
+voient (c'était le rôle des calques, retirés pour cette raison).
 
 **Corollaire sécurité** : comme le serveur ne valide pas la sémantique des
 payloads (relais opaque), le client traite tout ordre reçu comme **non fiable**.
@@ -183,8 +184,7 @@ snapshot serveur ; en solo, ils sont persistés en `localStorage`
 
 Modules clients notables : `map/missionCatalog.ts` (catalogue **pur** des
 figurés de mission, testé — séparé du rendu Leaflet `map/missions.ts`, vitest
-tournant en env node), `map/overlays.ts` (calques, filtrage purement local),
-`map/grid.ts` (quadrillage UTM, conversion inverse `fromUtm` dans `coords.ts`),
+tournant en env node), `map/grid.ts` (quadrillage UTM, conversion inverse `fromUtm` dans `coords.ts`),
 `geocode.ts` (recherche de lieu IGN).
 
 ### Réglages

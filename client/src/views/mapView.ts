@@ -19,7 +19,6 @@ import { MarkerLayer } from '../map/markers';
 import { missionDef } from '../map/missionCatalog';
 import { renderMission } from '../map/missions';
 import { OrdersLayer } from '../map/orders';
-import { activeLayer, isLayerHidden } from '../map/overlays';
 import { visibleGraphics, visibleWaypoints, type WaypointOrder } from '../map/orderFilter';
 import { PolylineSketch } from '../map/sketch';
 import { HOSTILE_SIDC } from '../map/symbols';
@@ -31,7 +30,6 @@ import {
   resetCommsNotifications,
   unreadCommsCount,
 } from './commsPanel';
-import { initLayerBanner } from './layerBanner';
 import { closeTac, initTacPanel } from './tacPanel';
 import { escapeHtml, formatDistance, uid } from '../util';
 import { openRoomMenu } from './roomMenu';
@@ -84,14 +82,6 @@ let pendingEni: L.LatLng | null = null;
 // Id de l'ordre en cours d'édition (menu point/ENI rouvert) : la validation
 // réémet le même id (donc écrase le plot) au lieu d'en créer un nouveau.
 let editId: string | null = null;
-// Calque du plot édité : préservé tel quel (l'édition ne déplace pas de calque).
-let editLayer: string | undefined;
-
-/** Calque d'un plot à l'envoi : celui d'origine en édition, sinon l'actif. */
-function plotLayer(): string | undefined {
-  return (editId ? editLayer : activeLayer()) || undefined;
-}
-
 /** Démarrage sur la carte, avec ou sans session : en solo, seuls la géoloc et
  *  les outils locaux tournent — le socket ne se connecte qu'une fois en salle. */
 export function enterMap(): void {
@@ -301,7 +291,6 @@ function initLeaflet(): void {
       return p ? [p.lat, p.lng] : null;
     },
     isSketching: () => sketch !== null,
-    isLayerHidden: (layer) => isLayerHidden(layer),
   });
 }
 
@@ -324,9 +313,6 @@ function wireBus(): void {
     checkIncomingMessages(); // toast + vibration sur message reçu
     renderTopbar(); // badges (éléments en attente + non-lus Comms)
   });
-
-  // Visibilité ou calque actif modifiés : re-filtrer les figurés affichés.
-  bus.on('overlays', () => ordersLayer?.sync(state.orders));
 
   bus.on('conn', () => renderConn());
 
@@ -551,11 +537,8 @@ function finishSketch(): void {
 }
 
 /** Transmet un ordre graphique — vers la salle (optimiste + file hors-ligne),
- *  ou appliqué à la carte solo persistée (voir submitOrder). Le figuré part
- *  dans le calque actif (panneau Tac) ; sans calque choisi = Général. */
+ *  ou appliqué à la carte solo persistée (voir submitOrder). */
 function sendGraphic(points: L.LatLng[], style: GraphicStyle): void {
-  const layer = activeLayer();
-  if (layer) style.layer = layer;
   submitOrder({
     id: uid(),
     authorId: orderAuthor(),
@@ -665,7 +648,7 @@ function confirmPointMenu(): void {
     authorId: orderAuthor(),
     ts: Date.now(),
     kind: 'waypoint',
-    payload: { kind: 'waypoint', name, lat: c.lat, lng: c.lng, color: pointColor, layer: plotLayer() },
+    payload: { kind: 'waypoint', name, lat: c.lat, lng: c.lng, color: pointColor },
   });
   closePointMenu();
 }
@@ -725,7 +708,7 @@ function confirmEniMenu(): void {
     authorId: orderAuthor(),
     ts: Date.now(),
     kind: 'waypoint',
-    payload: { kind: 'waypoint', name, lat: c.lat, lng: c.lng, sidc: HOSTILE_SIDC, layer: plotLayer() },
+    payload: { kind: 'waypoint', name, lat: c.lat, lng: c.lng, sidc: HOSTILE_SIDC },
   });
   closeEniMenu();
 }
@@ -747,7 +730,6 @@ function editPlot(w: WaypointOrder): void {
   closePointMenu();
   closeEniMenu();
   editId = w.id;
-  editLayer = w.layer;
   if (w.color != null) {
     pendingPoint = L.latLng(w.lat, w.lng);
     pointColor = w.color;
@@ -1014,8 +996,6 @@ export function initMapView(): void {
   initCommsPanel({ notify: (text) => toast(text) });
   // Panneau « Tac » : figurés de mission.
   initTacPanel({ startMission: startMissionSketch });
-  // Bandeau des calques d'affichage (haut de l'écran).
-  initLayerBanner({ notify: (text) => toast(text) });
 
   for (const mode of DISPLAYED_TOOLS) {
     $(`tool-${mode}`).addEventListener('click', () => {

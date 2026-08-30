@@ -1,7 +1,6 @@
 // Panneau « Tac » : figurés de mission (section / groupe) à poser sur la
 // carte. Ouvert par le bouton Tac (sous Comms) ; choisir une mission ferme le
-// panneau et lance le tracé. Les calques d'affichage vivent dans le bandeau
-// en haut de l'écran (layerBanner).
+// panneau et lance le tracé.
 import {
   MISSION_CATEGORIES,
   MISSIONS,

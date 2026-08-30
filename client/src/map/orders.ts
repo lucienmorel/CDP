@@ -100,8 +100,6 @@ export interface OrdersLayerCallbacks {
   selfLatLng: () => [number, number] | null;
   /** Vrai pendant une esquisse : ne pas ouvrir de popup sous le doigt. */
   isSketching: () => boolean;
-  /** Calque masqué localement : le figuré n'est pas rendu. */
-  isLayerHidden: (layer?: string) => boolean;
 }
 
 export class OrdersLayer {
@@ -115,16 +113,8 @@ export class OrdersLayer {
   }
 
   sync(orders: Map<string, OrderMessage>): void {
-    const graphics = new Map(
-      visibleGraphics(orders)
-        .filter((g) => !this.cb.isLayerHidden(g.style.layer))
-        .map((g) => [g.id, g]),
-    );
-    const plots = new Map(
-      visibleWaypoints(orders)
-        .filter((w) => !this.cb.isLayerHidden(w.layer))
-        .map((w) => [w.id, w]),
-    );
+    const graphics = new Map(visibleGraphics(orders).map((g) => [g.id, g]));
+    const plots = new Map(visibleWaypoints(orders).map((w) => [w.id, w]));
     for (const [id, r] of this.rendered) {
       if (!graphics.has(id) && !plots.has(id)) {
         this.removeRendered(r);

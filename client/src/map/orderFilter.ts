@@ -17,8 +17,6 @@ export interface WaypointOrder {
   sidc?: string;
   /** Présent pour un point nommé (rond de couleur) ; absent pour un plot ENI. */
   color?: string;
-  /** Calque d'affichage (filtrage local, comme GraphicStyle.layer). */
-  layer?: string;
 }
 
 function removedIds(orders: Map<string, OrderMessage>): Set<string> {
@@ -51,9 +49,9 @@ export function visibleWaypoints(orders: Map<string, OrderMessage>): WaypointOrd
   const out: WaypointOrder[] = [];
   for (const o of orders.values()) {
     if (o.payload.kind !== 'waypoint' || removed.has(o.id)) continue;
-    const { name, lat, lng, sidc, color, layer } = o.payload;
+    const { name, lat, lng, sidc, color } = o.payload;
     if (typeof lat !== 'number' || typeof lng !== 'number') continue;
-    out.push({ id: o.id, authorId: o.authorId, name, lat, lng, sidc, color, layer });
+    out.push({ id: o.id, authorId: o.authorId, name, lat, lng, sidc, color });
   }
   return out;
 }
