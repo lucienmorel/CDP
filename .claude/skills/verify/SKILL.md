@@ -28,7 +28,7 @@ description: Vérifier un changement client TacticalQuest en pilotant la PWA dan
 - Esquisses (mesure/liseré/flèche/box/mission) : l'origine se pose au réticule
   central ; déplacer la carte étire le tracé ; `#sketch-ok` valide.
 - Vérifier l'état : `localStorage.getItem('tq-solo-orders')` (figurés solo),
-  `tq-layers` (calques).
+  `tq-outbox` (ordres en attente d'envoi à la salle).
 
 ## Gotchas
 
