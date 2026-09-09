@@ -1,7 +1,7 @@
 // Comms : chat libre de la salle. Chacun peut envoyer des messages texte ;
 // ils transitent comme des ordres `text` (transport optimiste + file hors-ligne).
 import { state } from '../state';
-import { sendOrder } from '../socket';
+import { sendOrder } from '../transport';
 import { uid, escapeHtml } from '../util';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;

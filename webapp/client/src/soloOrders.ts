@@ -1,6 +1,6 @@
 import type { OrderMessage } from '@tq/shared/protocol';
 import { bus, state } from './state';
-import { sendOrder } from './socket';
+import { sendOrder } from './transport';
 
 // Figurés de la carte solo (hors salle) : appliqués localement et persistés en
 // localStorage — ils survivent à la fermeture de l'app et reviennent à chaque

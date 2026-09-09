@@ -8,7 +8,7 @@ import type { GraphicStyle, LineEchelon, MemberPublic, Position } from '@tq/shar
 import { bus, loadLastRoom, state } from '../state';
 import { cycleCoordFormat, formatCoords, getCoordFormat, parseCoords, setCoordFormat, type CoordFormat } from '../coords';
 import { cachedElevation, coordsWithAltitudeHtml, elevationKey, fetchElevation, hydrateAltitudes } from '../elevation';
-import { connectForSession, leaveRoom, pendingOrderCount, restorePendingOrders, sendPosition } from '../socket';
+import { connectForSession, leaveRoom, pendingOrderCount, restorePendingOrders, sendPosition } from '../transport';
 import { offerSoloImport, orderAuthor, restoreSoloOrders, SOLO_AUTHOR, submitOrder } from '../soloOrders';
 import { startGeolocation, type GeoWatcher } from '../geo';
 import { dlog, formatLog, clearLog, onLog } from '../debugLog';

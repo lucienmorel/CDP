@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./protocol": "./src/protocol.ts",
-    "./constants": "./src/constants.ts"
+    "./constants": "./src/constants.ts",
+    "./radioProtocol": "./src/radioProtocol.ts"
   }
 }

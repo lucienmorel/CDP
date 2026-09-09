@@ -16,18 +16,24 @@ Ce document reprend les conclusions de `ANALYSE.md`, recadrées d'après le brie
 
 ## Axe A — Client (TacQuest/TacMesh)
 
-### A1. Format de message compact + fragmentation (`shared/`)
-Le format actuel (`shared/src/protocol.ts`, `OrderMessage` / `Position` en JSON) vise du JSON sans limite de taille, pas ~200 octets par trame radio.
-- Concevoir un format binaire compact (nouveau fichier, ex. `shared/src/radioProtocol.ts`) : id court, type, coordonnées quantifiées.
-- Prévoir la fragmentation des ordres `graphic` (une ligne à plusieurs points dépasse vite 200 octets) : trames numérotées (id de fragment, index/total), réassemblées à la réception.
-- `shared/src/protocol.ts` reste inchangé pour le mode serveur.
-- **Ce format est le contrat partagé avec l'Axe B** (le firmware doit reconnaître exactement ces mêmes trames) — à figer et documenter avant d'avancer sur B2.
+### A1. Format de message compact — ✅ fait (`shared/src/radioProtocol.ts`)
+Le format serveur (`shared/src/protocol.ts`, `OrderMessage` / `Position` en JSON) vise du JSON sans limite de taille, pas ~200 octets par trame radio. `shared/src/protocol.ts` reste inchangé, inutile pour le mode serveur.
 
-### A2. Façade "transport" commune (`client/src/transport.ts`, à créer)
-Trois fichiers importent aujourd'hui des fonctions directement depuis `client/src/socket.ts` : `client/src/soloOrders.ts` (`sendOrder`), `client/src/views/mapView.ts` (`connectForSession`, `leaveRoom`, `pendingOrderCount`, `restorePendingOrders`, `sendPosition`), `client/src/views/roomMenu.ts` (`createRoom`, `joinRoom`, `FIXED_ROLE`).
-- Créer `transport.ts`, mêmes noms de fonctions exposés, redirection interne vers l'implémentation active (serveur ou radio).
-- Rebrancher les imports de ces 3 fichiers vers `transport.ts` — leur logique ne change pas.
-- Réglage pour choisir le transport actif (dans `roomMenu.ts` ou un nouvel écran).
+**Portée réduite, décidée avec toi** : la radio ne transporte que des *symboles* (un type de figuré + une position) — pas les lignes/box/missions (`OrderPayload` kind `'graphic'`), pas le chat (`kind: 'text'`). Un symbole tient largement sous les ~200 octets (≈80 octets au pire), donc **pas de fragmentation/réassemblage** — la partie la plus lourde du plan initial disparaît.
+
+Implémenté dans `shared/src/radioProtocol.ts` (exporté via `shared/package.json` sous `@tq/shared/radioProtocol`), testé dans `client/src/radioProtocol.test.ts` (13 tests, aller-retour encode/decode + cas d'erreur) :
+- Trame `set` (≈15 + taille SIDC/couleur + nom, jamais >200o) : version, opcode, `localId` (uint32, choisi par l'auteur), lat/lng quantifiés en `int32` (×1e7, ~1 cm de précision — même technique que Meshtastic en interne), type de symbole (SIDC *ou* point coloré nommé), nom (tronqué à 32 octets UTF-8 sans jamais couper un caractère).
+- Trame `remove` : 6 octets (version, opcode, `localId`).
+- **Pas d'`authorId` ni de `ts` dans le payload** : l'auteur vient gratuitement du champ `from` du paquet Meshtastic (fourni par la couche transport, cf. A3/A4) ; l'horodatage n'est utilisé par aucune logique de rendu de symbole (`map/orders.ts` ne compare que position/nom/couleur/sidc).
+- **Contrat partagé avec l'Axe B** : le firmware doit reconnaître exactement ce format — à ne plus changer sans coordination une fois B2 commencé.
+
+### A2. Façade "transport" commune — ✅ fait (`client/src/transport.ts`)
+Quatre fichiers (un de plus que prévu — repéré en le faisant) importaient des fonctions directement depuis `client/src/socket.ts` : `client/src/soloOrders.ts` (`sendOrder`), `client/src/views/mapView.ts` (`connectForSession`, `leaveRoom`, `pendingOrderCount`, `restorePendingOrders`, `sendPosition`), `client/src/views/roomMenu.ts` (`createRoom`, `joinRoom`, `FIXED_ROLE`), **et `client/src/views/commsPanel.ts`** (`sendOrder`, pour le chat).
+- `transport.ts` re-exporte aujourd'hui `socket.ts` tel quel (un seul transport existe encore) — aucun changement de comportement, juste le point de couture posé.
+- Les 4 fichiers importent désormais de `transport.ts`, plus aucun d'eux n'importe `socket.ts` directement.
+- Réglage pour choisir le transport actif : pas encore fait, à ajouter quand `radio.ts` (A3) existera réellement — inutile tant qu'il n'y a qu'une implémentation à choisir.
+
+Vérifié : `tsc --noEmit`, `vitest run` (52 tests, dont les 13 nouveaux), `vite build` — tous verts.
 
 ### A3. Connexion BLE au boîtier, protocole Meshtastic (`client/src/radio.ts`, à créer)
 - `navigator.bluetooth` (Web Bluetooth, Chrome/Android) pour se connecter au boîtier.
@@ -36,8 +42,8 @@ Trois fichiers importent aujourd'hui des fonctions directement depuis `client/sr
 - Pas de gestion de canal/paramètres LoRa ici : on lit/utilise le canal déjà configuré sur le boîtier (via l'appli Meshtastic officielle), on ne le crée pas.
 
 ### A4. Position et ordres via radio
-- `sendPosition` / `sendOrder` côté `radio.ts` : écriture BLE vers le boîtier (format A1) au lieu de `socket.emit(...)`.
-- À la réception, réassembler les fragments et rappeler **exactement** `state.orders.set(o.id, o)` + `bus.emit('orders')` — comme le fait déjà `socket.ts`.
+- `sendPosition` / `sendOrder` côté `radio.ts` : `encodeRadioMessage()` (A1) puis écriture BLE vers le boîtier, au lieu de `socket.emit(...)`. Une seule trame par symbole, pas de réassemblage nécessaire.
+- À la réception, `decodeRadioMessage()`, reconstruire un `OrderMessage` (id = `packet.from` + `localId`, `authorId` = `packet.from`) et rappeler **exactement** `state.orders.set(o.id, o)` + `bus.emit('orders')` — comme le fait déjà `socket.ts`.
 - Résultat : `state.ts`, `map/orders.ts`, `map/orderFilter.ts` ne changent pas.
 
 ### A5. Identité = node id Meshtastic
