@@ -79,8 +79,8 @@ flowchart TB
         SOCK["Réseau\nsocket.ts (Socket.IO client)"]
         UI -->|submitOrder / sendPosition| STATE
         STATE -->|sendOrder| SOCK
-        STATE -->|bus.emit('orders')| MAP
-        UI -->|appel direct: createRoom, joinRoom,\nleaveRoom, connectForSession| SOCK
+        STATE -->|"bus.emit('orders')"| MAP
+        UI -->|"appel direct: createRoom, joinRoom,\nleaveRoom, connectForSession"| SOCK
     end
 
     SHARED["shared/protocol.ts\n(types d'événements + charges utiles)"]
@@ -93,7 +93,7 @@ flowchart TB
     end
     SHARED <-. contrat typé .-> H
 
-    SOCK <==>|WebSocket (Socket.IO)| H
+    SOCK <==>|"WebSocket (Socket.IO)"| H
     H -->|room_state / order / member_*| SOCK
 ```
 
@@ -106,7 +106,7 @@ flowchart TB
         MAP["Carte\nmap/orders.ts, orderFilter.ts"]
         STATE["État local\nstate.ts (Map + bus), soloOrders.ts"]
         UI --> STATE
-        STATE -->|bus.emit('orders')| MAP
+        STATE -->|"bus.emit('orders')"| MAP
     end
 
     TRANSPORT["Couche transport commune\n(même API: sendOrder, sendPosition,\ncreateRoom/joinRoom, leaveRoom…)"]
@@ -125,11 +125,11 @@ flowchart TB
         BOX1["Boîtier Meshtastic A\n(LoRa)"]
         BOX2["Boîtier Meshtastic B\n(LoRa)"]
         BOX3["Boîtier Meshtastic C\n(LoRa)"]
-        BOX1 <-->|LoRa, ~200 octets/trame| BOX2
+        BOX1 <-->|"LoRa, ~200 octets/trame"| BOX2
         BOX2 <-->|LoRa| BOX3
-        BOX1 <-->|LoRa (relais multi-saut)| BOX3
+        BOX1 <-->|"LoRa (relais multi-saut)"| BOX3
     end
-    RADIO <-->|Bluetooth (BLE)| BOX1
+    RADIO <-->|"Bluetooth (BLE)"| BOX1
 ```
 
 ---
